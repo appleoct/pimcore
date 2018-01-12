@@ -19,6 +19,7 @@ use Pimcore\Console\AbstractCommand;
 use Pimcore\Tool\Admin;
 use Pimcore\Tool\Console;
 use Pimcore\Update;
+use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
@@ -64,6 +65,12 @@ class UpdateCommand extends AbstractCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        // remove terminate event listeners as they break with a cleared container
+        $eventDispatcher = $this->getContainer()->get('event_dispatcher');
+        foreach ($eventDispatcher->getListeners(ConsoleEvents::TERMINATE) as $listener) {
+            $eventDispatcher->removeListener(ConsoleEvents::TERMINATE, $listener);
+        }
+
         $currentRevision = null;
         if ($input->getOption('source-build')) {
             $currentRevision = $input->getOption('source-build');
@@ -198,9 +205,13 @@ class UpdateCommand extends AbstractCommand
 
             $this->output->writeln("\n");
 
+            // the exit()s are necessary as we need to prevent any code running after the update which potentially relies
+            // on services which don't exist anymore due to an updated container
             if ($stoppedByError) {
                 $this->output->writeln('<error>Update stopped by error! Please check your logs</error>');
                 $this->output->writeln('Last return value was: ' . $return);
+
+                exit(1);
             } else {
                 $this->output->writeln('<info>Update done!</info>');
 
@@ -211,6 +222,8 @@ class UpdateCommand extends AbstractCommand
                         ->setRows($returnMessages);
                     $table->render();
                 }
+
+                exit(0);
             }
         }
     }

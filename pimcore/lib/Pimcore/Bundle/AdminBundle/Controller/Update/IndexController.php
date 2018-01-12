@@ -15,6 +15,8 @@
 namespace Pimcore\Bundle\AdminBundle\Controller\Update;
 
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
+use Pimcore\Cache\Core\CoreHandlerInterface;
+use Pimcore\Cache\Symfony\CacheClearer;
 use Pimcore\Config;
 use Pimcore\Controller\EventedControllerInterface;
 use Pimcore\Update;
@@ -22,6 +24,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -124,7 +127,7 @@ class IndexController extends AdminController implements EventedControllerInterf
      *
      * @return mixed
      */
-    public function jobProceduralAction(Request $request)
+    public function jobProceduralAction(Request $request, KernelInterface $kernel)
     {
         $status = ['success' => true];
 
@@ -132,7 +135,7 @@ class IndexController extends AdminController implements EventedControllerInterf
             Update::installData($request->get('revision'), $request->get('updateScript'));
         } elseif ($request->get('type') == 'clearcache') {
             \Pimcore\Cache::clearAll();
-            \Pimcore\Tool::clearSymfonyCache($this->container);
+            $this->get(CacheClearer::class)->clear($kernel);
         } elseif ($request->get('type') == 'preupdate') {
             $status = Update::executeScript($request->get('revision'), 'preupdate');
         } elseif ($request->get('type') == 'postupdate') {
